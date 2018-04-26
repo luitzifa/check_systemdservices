@@ -25,7 +25,7 @@ class SystemdStatus(nagiosplugin.Resource):
         if self.ignore is None:
             return False
         for iservice in self.ignore:
-            if iservice in service:
+            if iservice and iservice == service:
                 try:
                     p = subprocess.Popen(['systemctl', 'reset-failed', service],
                                          stderr=subprocess.PIPE,

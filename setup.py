@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 setup(
     name='check_systemdservices',
     packages=find_packages(),
-    version='1.2.0',
+    version='1.2.2',
     scripts=['bin/check_systemdservices'],
     install_requires=[
         'nagiosplugin>=1.2',
@@ -12,7 +12,7 @@ setup(
     author='Daniel Krämer',
     author_email='dakr@luitzifa.de',
     url='https://github.com/luitzifa/check_systemdservices',
-    download_url='https://github.com/luitzifa/check_systemdservices/tarball/v1.2.0',
+    download_url='https://github.com/luitzifa/check_systemdservices/tarball/v1.2.2',
     keywords=['nagios', 'systemd'],
     license='GNU LGPL v2',
     classifiers=[
