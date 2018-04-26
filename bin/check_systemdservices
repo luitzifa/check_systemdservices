@@ -5,15 +5,41 @@ Public License as published by the Free Software Foundation, either version 2
 of the License.
 Copyright Andrea Briganti a.k.a 'Kbyte'
 """
+from __future__ import print_function
 import io
 import subprocess
 import argparse
+import sys
 
 import nagiosplugin
 
 
 class SystemdStatus(nagiosplugin.Resource):
     name = 'SYSTEMD'
+
+    def __init__(self, *args, **kwargs):
+        self.ignore = kwargs.pop('ignore')
+        super(nagiosplugin.Resource, self).__init__(*args, **kwargs)
+
+    def reset(self, service):
+        if self.ignore is None:
+            return False
+        for iservice in self.ignore:
+            if iservice in service:
+                try:
+                    p = subprocess.Popen(['systemctl', 'reset-failed', service],
+                                         stderr=subprocess.PIPE,
+                                         stdin=subprocess.PIPE,
+                                         stdout=subprocess.PIPE)
+                    pres, err = p.communicate()
+                except OSError as e:
+                    raise nagiosplugin.CheckError(e)
+
+                if err:
+                    raise nagiosplugin.CheckError(err)
+
+                return True
+        return False
 
     def probe(self):
         # Execute systemctl --failed --no-legend and get output
@@ -32,7 +58,10 @@ class SystemdStatus(nagiosplugin.Resource):
         if pres:
             result = ""
             for line in io.StringIO(pres.decode('utf-8')):
-                result = "%s %s" % (result, line.split(' ')[0])
+                pservice = line.split(' ')[0]
+                if self.reset(pservice):
+                    continue
+                result = "%s %s" % (result, pservice)
 
             return [nagiosplugin.Metric('systemd', (False, result), context='systemd')]
 
@@ -66,8 +95,7 @@ class ServiceStatus(nagiosplugin.Resource):
             result = result.strip()
             if result == "active":
                 return [nagiosplugin.Metric('systemd', (True, None), context='systemd')]
-            else:
-                return [nagiosplugin.Metric('systemd', (False, self.service), context='systemd')]
+            return [nagiosplugin.Metric('systemd', (False, self.service), context='systemd')]
 
         return [nagiosplugin.Metric('systemd', (False, "No Service given"), context='systemd')]
 
@@ -80,19 +108,23 @@ class SystemdContext(nagiosplugin.Context):
         value, output = metric.value
         if value:
             return self.result_cls(nagiosplugin.Ok, metric=metric)
-        else:
-            return self.result_cls(nagiosplugin.Critical, metric=metric, hint='failed units: %s' % output)
+        return self.result_cls(nagiosplugin.Critical, metric=metric, hint='failed units: %s' % output)
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-s", "--service", type=str, dest="service", help="Name of the Service that is beeing tested")
+    parser.add_argument("-i", "--ignore", nargs='*', dest="ignore", help="List of the Service that are ignored and resetted")
 
     args = parser.parse_args()
 
+    if args.service and args.ignore:
+        print("-s and -i are mutually exclusive")
+        sys.exit(3)
+
     if args.service is None:
         check = nagiosplugin.Check(
-            SystemdStatus(),
+            SystemdStatus(ignore=args.ignore),
             SystemdContext())
     else:
         check = nagiosplugin.Check(
