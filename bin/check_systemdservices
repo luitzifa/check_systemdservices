@@ -62,8 +62,8 @@ class SystemdStatus(nagiosplugin.Resource):
                 if self.reset(pservice):
                     continue
                 result = "%s %s" % (result, pservice)
-
-            return [nagiosplugin.Metric('systemd', (False, result), context='systemd')]
+            if result.strip():
+                return [nagiosplugin.Metric('systemd', (False, result), context='systemd')]
 
         return [nagiosplugin.Metric('systemd', (True, None), context='systemd')]
 
