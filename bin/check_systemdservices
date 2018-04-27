@@ -21,24 +21,12 @@ class SystemdStatus(nagiosplugin.Resource):
         self.ignore = kwargs.pop('ignore')
         super(nagiosplugin.Resource, self).__init__(*args, **kwargs)
 
-    def reset(self, service):
-        if self.ignore is None:
-            return False
-        for iservice in self.ignore:
-            if iservice and iservice == service:
-                try:
-                    p = subprocess.Popen(['systemctl', 'reset-failed', service],
-                                         stderr=subprocess.PIPE,
-                                         stdin=subprocess.PIPE,
-                                         stdout=subprocess.PIPE)
-                    pres, err = p.communicate()
-                except OSError as e:
-                    raise nagiosplugin.CheckError(e)
-
-                if err:
-                    raise nagiosplugin.CheckError(err)
-
+    def __ignore(self, service):
+        try:
+            if service in self.ignore:
                 return True
+        except TypeError:
+            pass
         return False
 
     def probe(self):
@@ -59,7 +47,7 @@ class SystemdStatus(nagiosplugin.Resource):
             result = ""
             for line in io.StringIO(pres.decode('utf-8')):
                 pservice = line.split(' ')[0]
-                if self.reset(pservice):
+                if self.__ignore(pservice):
                     continue
                 result = "%s %s" % (result, pservice)
             if result.strip():
